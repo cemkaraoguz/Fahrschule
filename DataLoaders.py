@@ -3,8 +3,8 @@ import numpy as np
 import torch
 import pickle
 import os
-from skimage.transform import resize
 from torchvision import transforms
+from Utils import process_frame
 
 class RaceCarDataLoader():
   
@@ -28,20 +28,26 @@ class RaceCarDataLoader():
     return len(self.indices)
   
   def __iter__(self):
-    for batch_indices in self.indices:
-      batch_frame = []
-      batch_reward = []
-      batch_action = []
-      for i in batch_indices:
-        batch_frame.append(self.database[i][0])
-        batch_reward.append(self.database[i][1])
-        batch_action.append(self.database[i][2])
-      yield batch_frame, batch_reward, batch_action
-
+    for idx_batch in range(len(self.indices)):
+      batch_frame, batch_reward, batch_action = self.get_batch(idx_batch)
+      yield batch_frame, batch_reward, batch_action 
+  
+  def get_batch(self, idx_batch):
+    batch_frame = []
+    batch_reward = []
+    batch_action = []
+    batch_indices = self.indices[idx_batch]
+    for i in batch_indices:
+      batch_frame.append(self.database[i][0])
+      batch_reward.append(self.database[i][1])
+      batch_action.append(self.database[i][2])
+    return batch_frame, batch_reward, batch_action
+  
   def load_files(self):
     data = []
     for file in os.listdir(self.root):
       if file.endswith(".pkl"):
+        print("Reading ", file)
         data.extend(self.read_file(os.path.join(self.root, file)))
     return data
   
@@ -62,11 +68,3 @@ class RaceCarDataLoader():
         except EOFError:
           break
     return data
-    
-  def process_frame(self, frame):
-    obs = frame[self.crop[0]:self.crop[1], self.crop[2]:self.crop[3],:].astype(np.float)/255.0
-    obs = resize(obs, self.size)
-    obs = ((1.0 - obs) * 255).round().astype(np.uint8)
-    #obs = (obs * 255).round().astype(np.uint8)
-    obs = np.transpose(obs, [2,0,1])
-    return obs

@@ -1,3 +1,6 @@
+import cv2
+import numpy as np
+
 class AverageMeter(object):
 
   def __init__(self):
@@ -23,3 +26,11 @@ def getValueFromDict(indict, key, defaultVal=None):
       raise KeyError
     else:
       return defaultVal
+
+def process_frame(frame, crop, size):
+  obs = frame[crop[0]:crop[1], crop[2]:crop[3],:]/256.0
+  obs = cv2.resize(obs, size)
+  #obs = ((1.0 - obs) * 255).round().astype(np.uint8)
+  #obs = (obs * 255).round().astype(np.uint8)    
+  obs = np.transpose(obs, [2,0,1])
+  return obs
