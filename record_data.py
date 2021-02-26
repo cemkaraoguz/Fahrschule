@@ -15,7 +15,7 @@ if __name__ == "__main__":
   a = np.array([0.0, 0.0, 0.0])
   
   path_record = "./data"
-  filename = "data_"+datetime.now().strftime("%Y%m%d%H%M%S")+".pkl"
+  filename = "expert_data_human"+datetime.now().strftime("%Y%m%d%H%M%S")+".pkl"
   if not os.path.exists(path_record):
     os.mkdir(path_record)
 
@@ -24,18 +24,18 @@ if __name__ == "__main__":
     if k == 0xFF0D:
         restart = True
     if k == key.LEFT:
-        a[0] = -1.0
+        a[0] = -0.2
     if k == key.RIGHT:
-        a[0] = +1.0
+        a[0] = +0.2
     if k == key.UP:
-        a[1] = +1.0
+        a[1] = +0.1
     if k == key.DOWN:
-        a[2] = +0.8  # set 1.0 for wheels to block to zero rotation
+        a[2] = +0.08  # set 1.0 for wheels to block to zero rotation
 
   def key_release(k, mod):
-    if k == key.LEFT and a[0] == -1.0:
+    if k == key.LEFT and a[0] == -0.2:
         a[0] = 0
-    if k == key.RIGHT and a[0] == +1.0:
+    if k == key.RIGHT and a[0] == +0.2:
         a[0] = 0
     if k == key.UP:
         a[1] = 0
