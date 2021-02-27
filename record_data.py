@@ -15,7 +15,7 @@ if __name__ == "__main__":
   a = np.array([0.0, 0.0, 0.0])
   
   path_record = "./data"
-  filename = "expert_data_human"+datetime.now().strftime("%Y%m%d%H%M%S")+".pkl"
+  filename = "expert_data_human_"+datetime.now().strftime("%Y%m%d%H%M%S")+".pkl"
   if not os.path.exists(path_record):
     os.mkdir(path_record)
 
@@ -49,23 +49,26 @@ if __name__ == "__main__":
   isopen = True
   iscarstarted = False
   while isopen:
+    samples = []
+    s = env.reset()
+    total_reward = 0.0
+    steps = 0
+    restart = False
+    while True:
+      s_new, r, done, info = env.step(a)
+      total_reward += r
+      if steps % 200 == 0 or done:
+        print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
+        print("step {} total_reward {:+0.2f}".format(steps, total_reward))
+      steps += 1
+      if a[1]>0:
+        iscarstarted = True
+      if iscarstarted:
+        samples.append((s, r, a))
+      s = np.array(s_new)
+      isopen = env.render()
+      if done or restart or isopen == False:
+        break
     with open(os.path.join(path_record,filename), 'ab') as fp:
-      env.reset()
-      total_reward = 0.0
-      steps = 0
-      restart = False
-      while True:
-        s, r, done, info = env.step(a)
-        total_reward += r
-        if steps % 200 == 0 or done:
-          print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
-          print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-        steps += 1
-        if a[1]>0:
-          iscarstarted = True
-        if iscarstarted:
-          pickle.dump((s,r,a), fp)
-        isopen = env.render()
-        if done or restart or isopen == False:
-          break
+      pickle.dump(samples, fp)
   env.close()
