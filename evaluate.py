@@ -1,6 +1,8 @@
 import gym
 from Models import ConvVAEWrapper, ResNetWrapper
 from Utils import process_frame
+import numpy as np
+import random
 
 def simulate(env, model, render_mode=True, num_episode=5, seed=-1):
 
@@ -81,6 +83,7 @@ def simulate(env, model, render_mode=True, num_episode=5, seed=-1):
   
 if __name__=="__main__":
 
+  seed = np.random.randint(10000)+10000 # Out of set of seeds used for data generation
   do_load_model = True
   num_episode = 1
   args_resnet = {'num_epochs': 1,
@@ -106,7 +109,7 @@ if __name__=="__main__":
   if do_load_model:
     resnet18.load_checkpoint(folder=args_resnet['checkpoint_folder'], filename=args_resnet['checkpoint_file'])
     
-  reward_list, t_list = simulate(env, resnet18, render_mode=True, num_episode=num_episode, seed=-1)
+  reward_list, t_list = simulate(env, resnet18, render_mode=True, num_episode=num_episode, seed=seed)
   
   print(reward_list)
   print(t_list)
