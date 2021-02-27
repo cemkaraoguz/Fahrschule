@@ -50,21 +50,13 @@ class RaceCarDataLoader():
         print("Reading ", file)
         data.extend(self.read_file(os.path.join(self.root, file)))
     return data
-  
+
   def read_file(self, file_path):
-    data = []
-    is_first = True
+    data_all = []
     with open(file_path, 'rb') as fp:
-      while True:
-        try:
-          sample = pickle.load(fp)
-          frame = self.process_frame(sample[0])
-          if not is_first:
-            # Skip the first frame, we need st, at, rt+1
-            data.append((frame_old, sample[1], sample[2]))
-          else:
-            is_first = False
-          frame_old = np.array(frame) # copy
-        except EOFError:
-          break
-    return data
+      data = pickle.load(fp)
+      for sample in data:
+        frame = process_frame(sample[0], self.crop, self.size)
+        data_all.append((frame, sample[1], sample[2]))
+    return data_all
+    
