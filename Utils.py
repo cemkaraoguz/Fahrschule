@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+import os
+from pickle import Pickler, Unpickler
 
 class AverageMeter(object):
 
@@ -34,3 +36,19 @@ def process_frame(frame, crop, size):
   #obs = (obs * 255).round().astype(np.uint8)    
   obs = np.transpose(obs, [2,0,1])
   return obs
+
+def saveLogData(logdata, folder):
+  filepath = os.path.join(folder, 'logdata.pkl')
+  if not os.path.exists(folder):
+      os.mkdir(folder)
+  with open(filepath, "wb+") as f:
+    Pickler(f).dump(logdata)
+
+def loadLogData(folder):
+  filepath = os.path.join(folder, 'logdata.pkl')
+  if not os.path.exists(filepath):
+      raise FileNotFoundError("No log data in path {}".format(filepath))
+  else:
+    print("Loading log data {}".format(filepath))
+    with open(filepath, "rb") as f:
+      return Unpickler(f).load()
