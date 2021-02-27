@@ -161,8 +161,6 @@ class ModelWrapper():
 class ConvVAEWrapper(ModelWrapper):
   
   def __init__(self, args):
-    self.checkpoint_folder = getValueFromDict(args, 'checkpoint_folder', 'checkpoint')
-    self.checkpoint_filename = getValueFromDict(args, 'checkpoint_filename', 'checkpoint.vae.tar')
     self.num_epochs = args['num_epochs']
     self.in_features = args['in_features']
     self.in_channels = getValueFromDict(args, 'in_channels', None)
@@ -177,10 +175,10 @@ class ConvVAEWrapper(ModelWrapper):
     print(self.net)
     
   def train(self, train_loader):
+
     for epoch in range(self.num_epochs):
       print("Epoch:", epoch)
       self.train_epoch(train_loader)
-      self.save_checkpoint(folder=self.checkpoint_folder, filename=self.checkpoint_filename)
       
   def train_epoch(self, data_loader):
     self.net.train()
@@ -247,30 +245,21 @@ class ResNetWrapper(ModelWrapper):
   
   def __init__(self, args):
     self.net = ResNet(args)
-    self.checkpoint_folder = getValueFromDict(args, 'checkpoint_folder', 'checkpoint')
-    self.checkpoint_filename = getValueFromDict(args, 'checkpoint_filename', 'checkpoint.resnet.tar')
     self.num_epochs = args['num_epochs']
     self.lr = getValueFromDict(args, 'lr', 1e-3)
     self.weight_decay = getValueFromDict(args, 'weight_decay', 1e-2)
     self.grad_clip = getValueFromDict(args, 'grad_clip', 0.0)
+    steps_per_epoch = args['steps_per_epoch']
     self.do_use_cuda = args['do_use_cuda'] and torch.cuda.is_available()
     self.device = torch.device("cuda" if self.do_use_cuda else "cpu")
     self.net.to(self.device)
     self.optimizer = optim.AdamW(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-    self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, self.lr, epochs=self.num_epochs, steps_per_epoch=args['steps_per_epoch'])
-    #self.loss_function = nn.CrossEntropyLoss()
-    #self.loss_function = self.loss_pi
+    if steps_per_epoch is None:
+      self.lr_scheduler = None
+    else:
+      self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, self.lr, 
+        epochs=self.num_epochs, steps_per_epoch=steps_per_epoch)
     self.loss_function = nn.MSELoss()
-    
-  def train(self, train_loader, valid_loader=None):
-    if valid_loader is not None:
-      self.test_epoch(valid_loader)
-    for epoch in range(self.num_epochs):
-      print("Epoch: ", epoch)
-      self.train_epoch(train_loader)
-      self.save_checkpoint(folder=self.checkpoint_folder, filename=self.checkpoint_filename)
-      if valid_loader is not None:
-        self.test_epoch(valid_loader)
   
   def train_epoch(self, data_loader):
     self.net.train()
@@ -280,36 +269,37 @@ class ResNetWrapper(ModelWrapper):
       self.optimizer.zero_grad()
       batch_frame = torch.FloatTensor(np.array(batch_frame).astype(np.float64))
       batch_action = torch.FloatTensor(np.array(batch_action).astype(np.float64))
-      actions = self.net.forward(batch_frame.to(self.device))
+      actions = self.net(batch_frame.to(self.device))
       loss = self.loss_function(batch_action.to(self.device), actions.to(self.device))
       loss.backward()
       if self.grad_clip:
         nn.utils.clip_grad_value_(self.net.parameters(), self.grad_clip)
       self.optimizer.step()
-      self.lr_scheduler.step()
+      if self.lr_scheduler is not None:
+        self.lr_scheduler.step()
       avg_loss.update(loss.item(), batch_frame.size(0))
       t.set_postfix(Loss=avg_loss)
+    return avg_loss
   
   def test_epoch(self, data_loader):
     self.net.eval()
-    '''
     avg_loss = AverageMeter()
     t = tqdm(range(len(data_loader)), desc="Testing")
-    for _, (input_data, target) in zip(t, data_loader):
+    for _, (batch_frame, batch_reward, batch_action) in zip(t, data_loader):
+      batch_frame = torch.FloatTensor(np.array(batch_frame).astype(np.float64))
+      batch_action = torch.FloatTensor(np.array(batch_action).astype(np.float64))
       with torch.no_grad():
-        output_data = self.net.forward(input_data.to(self.device))
-      loss = self.loss_function(output_data.to(self.device), target.to(self.device))
-      avg_loss.update(loss.item(), input_data.size(0))
+        actions = self.net(batch_frame.to(self.device))
+      loss = self.loss_function(batch_action.to(self.device), actions.to(self.device))
+      avg_loss.update(loss.item(), batch_frame.size(0))
       t.set_postfix(Loss=avg_loss)
-    '''
-    
-  def loss_pi(self, targets, outputs):
-    return -torch.sum(targets * outputs) / targets.size()[0]
-    
+    return avg_loss
+      
   def get_action(self, obs):
     self.net.eval()
     obs_tensor = torch.FloatTensor(np.array(obs).astype(np.float64)).view(-1, 3, 64, 64)
-    actions = self.net.forward(obs_tensor.to(self.device))
+    with torch.no_grad():
+      actions = self.net(obs_tensor.to(self.device))
     return actions.detach().cpu().numpy()[0]
 
   
