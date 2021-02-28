@@ -2,55 +2,48 @@ import torch
 from torch.utils.data import DataLoader, random_split
 from Datasets import CarRacingDataset
 from Models import ConvVAEWrapper, ResNetWrapper
-from Utils import saveLogData
+from Utils import saveLogData, parseArguments, getValueFromDict
+import sys
 
 R_TRAIN = 0.7 # Ratio of training samples in dataset
+IM_WIDTH = 64
+IM_HEIGHT = 64
+IM_CHANNELS = 3
 
 if __name__=="__main__":
   
-  im_width = 64
-  im_height = 64
-  num_epochs = 1
-  checkpoint_step = 1
-  checkpoint_folder = "./checkpoint"
+  cmd_args = parseArguments(sys.argv[1:])
   
-  #data_path = "./data_ai"
-  data_path = "./data_ai_s"
-  #data_path = "./data_ai_m"
+  num_epochs = int(getValueFromDict(cmd_args, 'num_epochs', 1))
+  checkpoint_step = int(getValueFromDict(cmd_args, 'checkpoint_step', 1))
+  checkpoint_folder = str(getValueFromDict(cmd_args, 'checkpoint_folder', "./checkpoint"))
+  do_save_checkpoints = bool(getValueFromDict(cmd_args, 'do_save_checkpoints', True))
+  data_folder = str(getValueFromDict(cmd_args, 'data_folder', ""))
+  if data_folder=="":
+    print("data_folder argument is necessary!")
+    sys.exit(2)
   
   batch_size = 64
   
-  args_vae = {'type_network': 'convvae', # pca, rica, ae, convae, vae, convvae
-          'in_channels': 3,
-          # ConvVAE
-          'rows' : im_height,
-          'cols' : im_width,
-          'num_hidden_features': [32, 64, 128, 256],
-          'strides': [2, 2, 2, 2],
-          'num_epochs': 1,
-          'do_use_cuda': True,
-          'in_features': im_height*im_width,
-         }
-
-  args_resnet = {'num_epochs': num_epochs,
-          'lr': 0.01,
-          'weight_decay': 1e-4,
-          'grad_clip': 0.1,
-          'steps_per_epoch': None, # Update after loading data
-          'do_use_cuda': True,
-          'num_classes': 3,
-          'in_channels': 3,
-          'num_channels': 64,
-          'shortcut': 'conv',
-          'num_res_blocks': [3,3,3],
+  args = {'num_epochs': num_epochs,        # Number of epochs to train
+          'lr': 0.01,                      # Learning rate
+          'weight_decay': 1e-4,            # Weight decay
+          'grad_clip': 0.1,                # Gradient clip
+          'steps_per_epoch': None,         # Steps per epoch, updated after loading data, set None for no lr scheduling
+          'do_use_cuda': True,             # Use CUDA?
+          'num_classes': 3,                # Output dimension of the network, number of actions in this case
+          'in_channels': IM_CHANNELS,      # Input channels
+          'num_channels': 64,              # Channels of the first block, will be doubled after each scale block
+          'shortcut': 'conv',              # Shortcut connections of the residual blocks, for now only conv is implemented
+          'num_res_blocks': [3,3,3],       # Number of scale blocks and number of residual blocks in each
           'comments': 'policy network for behaviour cloning',
          }
   
   log_data = {}
-  log_data['args'] = args_resnet # Save model hyperparams for further reference
+  log_data['args'] = args # Save model hyperparams for further reference
   
   # Datasets and loaders
-  dataset = CarRacingDataset(data_path, size=(im_height,im_width))
+  dataset = CarRacingDataset(data_folder, size=(IM_HEIGHT,IM_WIDTH))
   if R_TRAIN>0:
     train_set, valid_set = random_split(dataset, [int(len(dataset)*R_TRAIN), len(dataset)-int(len(dataset)*(R_TRAIN))])
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -59,10 +52,9 @@ if __name__=="__main__":
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     valid_loader = None
 
-  args_vae['steps_per_epoch'] = len(train_loader)
-  args_resnet['steps_per_epoch'] = len(train_loader)
+  args['steps_per_epoch'] = len(train_loader)
 
-  policy_network = ResNetWrapper(args_resnet)  
+  policy_network = ResNetWrapper(args)  
   
   for epoch in range(num_epochs):
     
@@ -78,7 +70,7 @@ if __name__=="__main__":
       valid_loss = 0
     
     # Save checkpoint
-    if (epoch%checkpoint_step)==0:
+    if do_save_checkpoints and (epoch%checkpoint_step)==0:
       checkpoint_filename = 'checkpoint.resnet.epoch.'+str(epoch)+'.tar'
       policy_network.save_checkpoint(folder=checkpoint_folder, filename=checkpoint_filename)
       
@@ -89,18 +81,4 @@ if __name__=="__main__":
       log_data[epoch]['train_loss'] = train_loss.avg
       log_data[epoch]['valid_loss'] = valid_loss.avg
       saveLogData(log_data, checkpoint_folder)
-  
-  '''
-  ae = ConvVAEWrapper(args_vae)
-  
-  # Before training
-  #ae.test(valid_loader, (im_height, im_width))
-  
-  # Training
-  ae.train(train_loader)
-  
-  # After training
-  ae.test(train_loader, (im_height, im_width))
-  '''
-  
   

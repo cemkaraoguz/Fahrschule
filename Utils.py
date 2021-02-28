@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import os
+import os, getopt, sys
 from pickle import Pickler, Unpickler
 
 class AverageMeter(object):
@@ -52,3 +52,29 @@ def loadLogData(folder):
     print("Loading log data {}".format(filepath))
     with open(filepath, "rb") as f:
       return Unpickler(f).load()
+      
+def parseArguments(argv):
+  long_option_mappings = {'data_folder=': ['data_folder', 'Data root directory'],
+                          'cp=': ['do_save_checkpoint', 'Do save checkpoint?'],
+                          'cp_folder=': ['checkpoint_folder', 'Checkpoint folder'],
+                          'cp_step=': ['checkpoint_step', 'Checkpoint saving interval'],
+                          'num_epochs=': ['num_epochs', 'Number of epochs to train'],
+                          }
+                          
+  def print_arguments():
+    print("Arguments : ")
+    print("".join(["  "+k[:-1]+":"+" "*(16-len(k[:-1]))+v[1]+"\n" for k,v in long_option_mappings.items()]))
+
+  try:
+    opts, args = getopt.getopt(argv, "h", list(long_option_mappings.keys()))
+  except getopt.GetoptError:
+    print("Usage:")
+    print_arguments()
+    sys.exit(2)
+  ret = {}
+  for opt, arg in opts:
+    if opt=='-h':
+      print_arguments()
+    else:      
+      ret[long_option_mappings[opt[2:]+"="][0]] = arg
+  return ret
