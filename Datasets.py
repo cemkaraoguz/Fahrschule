@@ -2,15 +2,9 @@ import pickle
 import os
 from Utils import process_frame
 from torch.utils.data import Dataset
+from Globals import *
 
 class CarRacingDataset(Dataset):
-
-  IM_WIDTH = 96
-  IM_HEIGHT = 96
-  IM_CROP_YMIN = 0
-  IM_CROP_YMAX = 84
-  IM_CROP_XMIN = 0
-  IM_CROP_XMAX = 96
   
   def __init__(self, root, size=(IM_HEIGHT, IM_WIDTH), 
     crop=(IM_CROP_YMIN, IM_CROP_YMAX, IM_CROP_XMIN, IM_CROP_XMAX)):

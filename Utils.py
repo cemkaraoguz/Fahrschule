@@ -54,11 +54,14 @@ def loadLogData(folder):
       return Unpickler(f).load()
       
 def parseArguments(argv):
-  long_option_mappings = {'data_folder=': ['data_folder', 'Data root directory'],
-                          'cp=': ['do_save_checkpoint', 'Do save checkpoint?'],
-                          'cp_folder=': ['checkpoint_folder', 'Checkpoint folder'],
-                          'cp_step=': ['checkpoint_step', 'Checkpoint saving interval'],
-                          'num_epochs=': ['num_epochs', 'Number of epochs to train'],
+  long_option_mappings = {'data_folder=': ['data_folder', '[TRAIN] Data root directory'],
+                          'cp=': ['do_save_checkpoint', '[TRAIN] Do save checkpoint?'],
+                          'cp_folder=': ['checkpoint_folder', '[TRAIN] Checkpoint folder'],
+                          'cp_step=': ['checkpoint_step', '[TRAIN] Checkpoint saving interval'],
+                          'num_epochs=': ['num_epochs', '[TRAIN] Number of epochs to train'],
+                          'num_episode=': ['num_episode', '[EVAL] Number of episodes to evaluate an agent'],
+                          'model_file=': ['model_file', '[EVAL] Path to the model file to be loaded'],
+                          'render_mode=': ['render_mode', '[EVAL] True for render environment on screen'],
                           }
                           
   def print_arguments():

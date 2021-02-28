@@ -1,0 +1,8 @@
+R_TRAIN = 0.7 # Ratio of training samples in dataset
+IM_WIDTH = 64
+IM_HEIGHT = 64
+IM_CHANNELS = 3
+IM_CROP_YMIN = 0
+IM_CROP_YMAX = 84
+IM_CROP_XMIN = 0
+IM_CROP_XMAX = 96

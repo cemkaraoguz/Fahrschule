@@ -4,11 +4,7 @@ from Datasets import CarRacingDataset
 from Models import ConvVAEWrapper, ResNetWrapper
 from Utils import saveLogData, parseArguments, getValueFromDict
 import sys
-
-R_TRAIN = 0.7 # Ratio of training samples in dataset
-IM_WIDTH = 64
-IM_HEIGHT = 64
-IM_CHANNELS = 3
+from Globals import *
 
 if __name__=="__main__":
   
@@ -17,7 +13,8 @@ if __name__=="__main__":
   num_epochs = int(getValueFromDict(cmd_args, 'num_epochs', 1))
   checkpoint_step = int(getValueFromDict(cmd_args, 'checkpoint_step', 1))
   checkpoint_folder = str(getValueFromDict(cmd_args, 'checkpoint_folder', "./checkpoint"))
-  do_save_checkpoints = bool(getValueFromDict(cmd_args, 'do_save_checkpoints', True))
+  do_save_checkpoints = str(getValueFromDict(cmd_args, 'do_save_checkpoints', "True")).lower() in ["true", "1"]
+
   data_folder = str(getValueFromDict(cmd_args, 'data_folder', ""))
   if data_folder=="":
     print("data_folder argument is necessary!")
