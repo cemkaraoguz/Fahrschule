@@ -4,6 +4,7 @@ import numpy as np
 import os
 from datetime import datetime
 import pickle
+from Globals import *
 
 env_name = "CarRacing-v0"
 env = gym.make(env_name)
@@ -24,31 +25,37 @@ if __name__ == "__main__":
     if k == 0xFF0D:
         restart = True
     if k == key.LEFT:
-        a[0] = -0.2
+        a[0] = -GAIN_STEERING
     if k == key.RIGHT:
-        a[0] = +0.2
+        a[0] = +GAIN_STEERING
     if k == key.UP:
-        a[1] = +0.1
+        a[1] = +GAIN_THROTTLE
     if k == key.DOWN:
-        a[2] = +0.08  # set 1.0 for wheels to block to zero rotation
+        a[2] = +GAIN_BRAKE  # set 1.0 for wheels to block to zero rotation
 
   def key_release(k, mod):
-    if k == key.LEFT and a[0] == -0.2:
+    if k == key.LEFT :
         a[0] = 0
-    if k == key.RIGHT and a[0] == +0.2:
+    if k == key.RIGHT :
         a[0] = 0
     if k == key.UP:
         a[1] = 0
+        gas = 0
     if k == key.DOWN:
         a[2] = 0
 
+  seed = np.random.randint(10000)
+  if (seed >= 0):
+    random.seed(seed)
+    np.random.seed(seed)
+    env.seed(seed)
   env.render()
   env.viewer.window.on_key_press = key_press
   env.viewer.window.on_key_release = key_release
 
-  isopen = True
-  iscarstarted = False
-  while isopen:
+  num_episodes = 1
+  for _ in range(num_episodes):
+    iscarstarted = False
     samples = []
     s = env.reset()
     total_reward = 0.0
@@ -57,18 +64,20 @@ if __name__ == "__main__":
     while True:
       s_new, r, done, info = env.step(a)
       total_reward += r
-      if steps % 200 == 0 or done:
-        print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
-        print("step {} total_reward {:+0.2f}".format(steps, total_reward))
       steps += 1
       if a[1]>0:
         iscarstarted = True
       if iscarstarted:
         samples.append((s, r, a))
       s = np.array(s_new)
-      isopen = env.render()
-      if done or restart or isopen == False:
+      env.render()
+      if done or restart:
         break
-    with open(os.path.join(path_record,filename), 'ab') as fp:
-      pickle.dump(samples, fp)
+    
+    print(f"You scored {total_reward}...")
+    user_input = input("Do you want to save your trajectory?")
+    if user_input.lower() in ["y", "yes"]:
+      with open(os.path.join(path_record,filename), 'ab') as fp:
+        pickle.dump(samples, fp)
+  
   env.close()

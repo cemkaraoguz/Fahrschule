@@ -30,12 +30,13 @@ def getValueFromDict(indict, key, defaultVal=None):
       return defaultVal
 
 def process_frame(frame, crop, size):
-  obs = frame[crop[0]:crop[1], crop[2]:crop[3],:]/256.0
+  obs = frame[crop[0]:crop[1], crop[2]:crop[3],:]
+  obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)
   obs = cv2.resize(obs, size)
   #obs = ((1.0 - obs) * 255).round().astype(np.uint8)
   #obs = (obs * 255).round().astype(np.uint8)    
-  obs = np.transpose(obs, [2,0,1])
-  return obs
+  #obs = np.transpose(obs, [2,0,1])
+  return np.reshape(obs, [1, size[0], size[1]])
 
 def saveLogData(logdata, folder):
   filepath = os.path.join(folder, 'logdata.pkl')
@@ -58,10 +59,15 @@ def parseArguments(argv):
                           'cp=': ['do_save_checkpoint', '[TRAIN] Do save checkpoint?'],
                           'cp_folder=': ['checkpoint_folder', '[TRAIN] Checkpoint folder'],
                           'cp_step=': ['checkpoint_step', '[TRAIN] Checkpoint saving interval'],
-                          'num_epochs=': ['num_epochs', '[TRAIN] Number of epochs to train'],
+                          'num_epochs=': ['num_epochs', '[TRAIN] Number of epochs to train policy network'],
+                          'num_epochs_vae=': ['num_epochs_vae', '[TRAIN] Number of epochs to train VAE'],
+                          'load_epoch=': ['load_epoch', '[TRAIN] Checkpoint epoch number to load'],
+                          'do_load_vae=': ['do_load_vae', '[TRAIN] Load VAE Model from disk?'],
+                          'model_file=': ['model_file', '[TRAIN/EVAL] Path to the PN model file to be loaded'],
+                          'vae_model_file=': ['vae_model_file', '[TRAIN/EVAL] Path to the VAE model file to be loaded'],
                           'num_episode=': ['num_episode', '[EVAL] Number of episodes to evaluate an agent'],
-                          'model_file=': ['model_file', '[EVAL] Path to the model file to be loaded'],
                           'render_mode=': ['render_mode', '[EVAL] True for render environment on screen'],
+                          'override=': ['num_frames_override', '[EVAL] Number of frames to override actions in the beginning'], 
                           }
                           
   def print_arguments():
