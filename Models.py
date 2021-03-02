@@ -14,7 +14,9 @@ from Globals import *
 #-------------------------
 
 class ConvVAE(nn.Module):
-  ''' Convolutional Variational Autoencoder '''
+  ''' 
+  Convolutional Variational Autoencoder 
+  '''
   
   def __init__(self, args):
     super().__init__()
@@ -46,10 +48,11 @@ class ConvVAE(nn.Module):
                               kernel_size=3, padding=1, stride=self.strides[i-1], output_padding=self.strides[i-1]-1))
       decoder_blocks.append(nn.BatchNorm2d(num_channels[i-1]))
       if(i==1):
-        decoder_blocks.append(nn.Sigmoid())
+        pass
       else:
         decoder_blocks.append(nn.ReLU())
     self.decoder = nn.Sequential(*decoder_blocks)
+    self.sigmoid = nn.Sigmoid()
   
   def forward(self, x):
     h = self.encoder(x).view(-1, self.num_hidden_features[-1]*self.encoder_rows*self.encoder_cols)
@@ -57,8 +60,9 @@ class ConvVAE(nn.Module):
     log_var = self.fc2(h)
     z = self._reparameterize(mu, log_var)
     z = self.fc3(z).view(-1, self.num_hidden_features[-1], self.encoder_rows, self.encoder_cols)
-    out = self.decoder(z)
-    return (mu, log_var), out
+    logits = self.decoder(z)
+    out = self.sigmoid(logits)
+    return (mu, log_var), logits, out
   
   def encode(self, x):
     h = self.encoder(x).view(-1, self.num_hidden_features[-1]*self.encoder_rows*self.encoder_cols)
@@ -141,15 +145,13 @@ class ResNet(nn.Module):
     out = self.res_blocks(out)
     out = self.pool2(out)
     out = torch.flatten(out, 1)
-    #out = self.fc(out)
-    #return out
     logits = self.fc(out)
     probs = F.softmax(logits, dim=1)    
     return logits, probs
 
 class LiNet(nn.Module):
   '''
-  Simple Linear network
+  Linear connection network
   '''
   def __init__(self, args):
     super(LiNet, self).__init__()
@@ -191,13 +193,13 @@ class ConvVAEWrapper(ModelWrapper):
   def __init__(self, args):
     self.in_channels = getValueFromDict(args, 'in_channels', None)
     weight_decay = getValueFromDict(args, 'weight_decay', 0.01)
+    self.lr = getValueFromDict(args, 'lr', 1e-3)
     self.net = ConvVAE(args)
     self.lossFunction = self._vae_loss
     self.do_use_cuda = args['do_use_cuda'] and torch.cuda.is_available()
     self.device = torch.device("cuda" if self.do_use_cuda else "cpu")
     self.net.to(self.device)
-    self.optimizer = optim.AdamW(self.net.parameters(), weight_decay=weight_decay)
-    print(self.net)
+    self.optimizer = optim.AdamW(self.net.parameters(), lr=self.lr, weight_decay=weight_decay)
   
   def encode(self, obs):
     return self.net.encode(obs)
@@ -209,15 +211,16 @@ class ConvVAEWrapper(ModelWrapper):
     for _, (batch_frame, batch_reward, batch_action) in zip(t, data_loader):
       self.optimizer.zero_grad()
       batch_frame = torch.FloatTensor(np.array(batch_frame).astype(np.float64))
-      latent_data, output_data = self.net(batch_frame.to(self.device))
-      loss = self.lossFunction(output_data.to(self.device), batch_frame.to(self.device), 
+      latent_data, logits_data, output_data = self.net(batch_frame.to(self.device))
+      loss = self.lossFunction(logits_data.to(self.device), batch_frame.to(self.device), 
         latent_data[0].to(self.device), latent_data[1].to(self.device))
       loss.backward()
       self.optimizer.step()
       avg_loss.update(loss.item(), batch_frame.size(0))
       t.set_postfix(Loss=avg_loss)
       
-  def visualize_decoder(self, data_loader, im_shape):
+  def visualize_decoder(self, data_loader):
+    im_shape = (IM_HEIGHT, IM_WIDTH)
     self.net.eval()
     valid_batch = next(iter(data_loader))
     latents = []
@@ -226,22 +229,23 @@ class ConvVAEWrapper(ModelWrapper):
     vis_cols = 4
     for i in range(vis_rows*vis_cols):
       frame = torch.FloatTensor(np.array(valid_batch[0][i]).astype(np.float64))
-      latent, recnst = self.net(frame.view(-1, self.in_channels, im_shape[0], im_shape[1]).to(self.device))
+      latent, logits, recnst = self.net(frame.view(-1, self.in_channels, im_shape[0], im_shape[1]).to(self.device))
       latents.append(latent)
       recnsts.append(recnst) 
     # Visualize reals
     pl.figure()
+    pl.title("Real images")
     for i, recnst in enumerate(recnsts):
       pl.subplot(vis_rows,vis_cols,i+1)
       frame = torch.FloatTensor(np.array(valid_batch[0][i]).astype(np.float64))
       img = frame.data.numpy().reshape((self.in_channels, im_shape[0], im_shape[1]))
       img = np.transpose(img, [1,2,0])
-      pl_img = pl.imshow(np.array(img, dtype=int))
+      pl_img = pl.imshow(np.array(img*IM_DEPTH_NORM, dtype=int))
       pl_img.set_cmap('gray')
       pl.axis('off')
-      pl.title("Real")
     # Visualize reconstructions
     pl.figure()
+    pl.title("Reconstructions")
     for i, recnst in enumerate(recnsts):
       pl.subplot(vis_rows,vis_cols,i+1)
       img = recnst.data.cpu().numpy().reshape((self.in_channels, im_shape[0], im_shape[1]))
@@ -249,11 +253,10 @@ class ConvVAEWrapper(ModelWrapper):
       pl_img = pl.imshow(img)
       pl_img.set_cmap('gray')
       pl.axis('off')
-      pl.title("Reconst")
     pl.show()
   
   def _vae_loss(self, network_output, target, mu, log_var):
-    reconstruction_loss = F.binary_cross_entropy(network_output, target, reduction='sum')
+    reconstruction_loss = F.binary_cross_entropy_with_logits(network_output, target, reduction='sum')
     kld_loss = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return reconstruction_loss + kld_loss  
     
@@ -327,7 +330,7 @@ class ResNetWrapper(ModelWrapper):
     with torch.no_grad():
       logits, probs = self.net(obs_tensor.to(self.device))
     action_idx = np.argmax(probs.detach().cpu().numpy()[0])
-    return ACTION_MAPPING[action_idx,:]
+    return ACTION_MAPPING[action_idx]
 
 class LiNetWrapper(ModelWrapper):
   
@@ -336,13 +339,13 @@ class LiNetWrapper(ModelWrapper):
     self.num_epochs = args['num_epochs']
     self.category_weights = getValueFromDict(args, 'category_weights', None)
     self.lr = getValueFromDict(args, 'lr', 1e-3)
-    self.weight_decay = getValueFromDict(args, 'weight_decay', 1e-2)
     self.grad_clip = getValueFromDict(args, 'grad_clip', 0.0)
+    self.epsilon = getValueFromDict(args, 'epsilon', 0.01) # Probability of overriding network output with STRAIGHT action
+    self.max_count_override = getValueFromDict(args, 'max_count_override', 5) # Maximum action override in the epsilon case
     steps_per_epoch = getValueFromDict(args, 'steps_per_epoch', None)
     self.do_use_cuda = args['do_use_cuda'] and torch.cuda.is_available()
     self.device = torch.device("cuda" if self.do_use_cuda else "cpu")
     self.net.to(self.device)
-    #self.optimizer = optim.AdamW(self.net.parameters(), lr=self.lr, weight_decay=self.weight_decay)
     self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
     if steps_per_epoch is None:
       self.lr_scheduler = None
@@ -353,7 +356,9 @@ class LiNetWrapper(ModelWrapper):
       self.loss_function = nn.CrossEntropyLoss()
     else:
       self.loss_function = nn.CrossEntropyLoss(weight=torch.FloatTensor(self.category_weights).to(self.device))
-  
+    self.do_override = False
+    self.count_override = 0
+
   def train_epoch(self, data_loader, encoder):
     self.net.train()
     avg_loss = AverageMeter()
@@ -396,5 +401,13 @@ class LiNetWrapper(ModelWrapper):
     with torch.no_grad():
       state = encoder.encode(obs_tensor.to(self.device))
       logits, probs = self.net(state.to(self.device))
-    action_idx = np.argmax(probs.detach().cpu().numpy()[0])
-    return ACTION_MAPPING[action_idx,:]  
+    if np.random.rand()<self.epsilon or self.do_override:
+      action_idx = 1
+      self.do_override = True
+      self.count_override += 1
+      if self.count_override>=self.max_count_override:
+        self.do_override = False
+    else:
+      action_idx = np.argmax(probs.detach().cpu().numpy()[0])
+      self.count_override = 0     
+    return ACTION_MAPPING[action_idx]  
