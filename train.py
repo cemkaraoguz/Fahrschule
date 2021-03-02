@@ -13,12 +13,11 @@ if __name__=="__main__":
   
   num_epochs_pn = int(getValueFromDict(cmd_args, 'num_epochs', 1))
   num_epochs_vae = int(getValueFromDict(cmd_args, 'num_epochs_vae', 1))
-  checkpoint_step = int(getValueFromDict(cmd_args, 'checkpoint_step', 1))
   checkpoint_folder = str(getValueFromDict(cmd_args, 'checkpoint_folder', "./checkpoint"))
   do_save_checkpoints = str(getValueFromDict(cmd_args, 'do_save_checkpoints', "True")).lower() in ["true", "1"]
   load_epoch = int(getValueFromDict(cmd_args, 'load_epoch', -1))
   model_file = str(getValueFromDict(cmd_args, 'model_file', ""))
-  do_load_vae = str(getValueFromDict(cmd_args, 'do_load_vae', "True")).lower() in ["true", "1"]
+  do_load_vae = str(getValueFromDict(cmd_args, 'do_load_vae', "False")).lower() in ["true", "1"]
   if do_load_vae:
     vae_model_file = str(getValueFromDict(cmd_args, 'vae_model_file', ""))
     if vae_model_file=="":
@@ -32,6 +31,7 @@ if __name__=="__main__":
     sys.exit(2)
   
   batch_size = 128
+  num_skip_frames_dataset = 0 # Used for skipping zooming-in frames in the beginning of each episode
 
   # VAE hyperparameters
   args_vae = {'in_channels': IM_CHANNELS,                   # Input dimensions
@@ -41,14 +41,13 @@ if __name__=="__main__":
               'num_latent_features': 32,                    # Latent space dims
               'strides': [2, 2, 2, 2],                      # Strides for each hidden block
               'do_use_cuda': True,                          # Use CUDA?
+              'comments': 'VAE for behaviour cloning'
              }
              
   # Policy network hyperparameters
   args_pn = {'num_epochs': num_epochs_pn,                     # Number of epochs to train
             'lr': 0.001,                                      # Learning rate
-            'weight_decay': 1e-4,                             # Weight decay
             'grad_clip': 0.1,                                 # Gradient clip
-            'steps_per_epoch': None,                          # Steps per epoch, updated after loading data, set None for no lr scheduling
             'do_use_cuda': True,                              # Use CUDA?
             'num_classes': NUM_DISCRETE_ACTIONS,              # Output dimension of the network, number of actions in this case
             'in_channels': args_vae['num_latent_features'],   # Input channels
@@ -62,19 +61,16 @@ if __name__=="__main__":
   log_data['args_pn'] = args_pn # Save model hyperparams for further reference
   
   # Datasets and loaders
-  dataset = CarRacingDataset(data_folder, action_space='discrete')
+  dataset = CarRacingDataset(data_folder, action_space='discrete', num_skip_frames=num_skip_frames_dataset)
   if R_TRAIN<1.0:
     train_set, valid_set = random_split(dataset, [int(len(dataset)*R_TRAIN), len(dataset)-int(len(dataset)*(R_TRAIN))])
-    args_pn['category_weights'] = train_set.calculate_weights()
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=False)
   else:
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     valid_loader = None
-    args_pn['category_weights'] = dataset.calculate_weights()
-
-  args_pn['steps_per_epoch'] = len(train_loader)
-  args_vae['steps_per_epoch'] = len(train_loader)
+  
+  args_pn['category_weights'] = dataset.calculate_weights()*100
 
   # -------------------
   #      VAE
@@ -89,14 +85,18 @@ if __name__=="__main__":
     # Training
     print("Training VAE")
     for epoch in range(num_epochs_vae):
+      
+      print("Epoch: ", epoch)
+      
       vae.train_epoch(train_loader)
-      if do_save_checkpoints and (epoch%checkpoint_step)==0: 
-        vae_checkpoint_filename = 'checkpoint.vae.epoch.'+str(0)+'.tar'
+      
+      if do_save_checkpoints: 
+        vae_checkpoint_filename = 'checkpoint.vae.epoch.'+str(epoch)+'.tar'
         vae.save_checkpoint(folder=checkpoint_folder, filename=vae_checkpoint_filename)  
     
     # After training
     if valid_loader is not None:
-      vae.visualize_decoder(valid_loader, (IM_HEIGHT, IM_WIDTH))
+      vae.visualize_decoder(valid_loader)
 
   # -------------------
   #      Policy
@@ -127,7 +127,7 @@ if __name__=="__main__":
       valid_loss = 0
     
     # Save checkpoint
-    if do_save_checkpoints and (epoch%checkpoint_step)==0:
+    if do_save_checkpoints:
       checkpoint_filename = 'checkpoint.policy.epoch.'+str(epoch)+'.tar'
       policy_network.save_checkpoint(folder=checkpoint_folder, filename=checkpoint_filename)
       
