@@ -13,13 +13,13 @@ env = gym.make(env_name)
 if __name__ == "__main__":
   from pyglet.window import key
 
-  a = np.array([0.0, 0.0, 0.0])
+  a = np.array([0.0, 0.0, 0.0, 0.0])
   
   path_record = "./data"
   filename = "expert_data_human_"+datetime.now().strftime("%Y%m%d%H%M%S")+".pkl"
   if not os.path.exists(path_record):
     os.mkdir(path_record)
-
+  
   def key_press(k, mod):
     global restart
     if k == 0xFF0D:
@@ -34,16 +34,16 @@ if __name__ == "__main__":
         a[2] = +GAIN_BRAKE  # set 1.0 for wheels to block to zero rotation
 
   def key_release(k, mod):
-    if k == key.LEFT :
+    if k == key.LEFT and a[0] == -GAIN_STEERING:
         a[0] = 0
-    if k == key.RIGHT :
+    if k == key.RIGHT and a[0] == +GAIN_STEERING:
         a[0] = 0
     if k == key.UP:
         a[1] = 0
         gas = 0
     if k == key.DOWN:
         a[2] = 0
-
+  
   seed = np.random.randint(10000)
   if (seed >= 0):
     random.seed(seed)
@@ -62,13 +62,14 @@ if __name__ == "__main__":
     steps = 0
     restart = False
     while True:
+      #print(a)
       s_new, r, done, info = env.step(a)
       total_reward += r
       steps += 1
       if a[1]>0:
         iscarstarted = True
       if iscarstarted:
-        samples.append((s, r, a))
+        samples.append((s, r, np.array(a)))
       s = np.array(s_new)
       env.render()
       if done or restart:
