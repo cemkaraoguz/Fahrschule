@@ -138,7 +138,7 @@ Since the objective is not only learning to drive from an expert but also gettin
 
 As we can see the behaviour of the agent is similar to that of the expert. The agent tends to accelerate more and use right turns less. We can also do a qualitative comparison of the behaviours of the agent and the human expert. Upon a visual inspection, it can be seen that the agent tends to take sharp curves from inside and occasionally over the grass like the human expert. An example case is shown in the figure below:
 
-<img src="Figures/curve_behaviour.png" width=500><br>
+<img src="Figures/curve_behaviour.png" width=1000><br>
 
 Finally, an additional dataset is generated from a non-expert driver. Since the non-expert driver's behaviour is significantly different than the expert's behaviour, models trained with this new dataset should behave significantly differently, closer to the behaviour of the non-expert. This hypothesis is confirmed by visually comparing the behaviours of these agents and the behaviours of their counterpart experts. 
 
