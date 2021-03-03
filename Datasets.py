@@ -87,4 +87,12 @@ class CarRacingDataset(Dataset):
       raise(NotImplementedError)
     weights = self.action_histogram/np.sum(self.action_histogram)
     return 1.0-weights
-      
+  
+  def balance_dataset(self):
+    probs = self.calculate_weights()
+    #probs = weights/np.sum(weights)
+    samples = self.samples.copy()
+    self.samples = []
+    for s in samples:
+      if np.random.rand()<probs[s[2]]:
+        self.samples.append(s)
