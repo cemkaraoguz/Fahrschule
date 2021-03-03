@@ -91,7 +91,11 @@ Training loss decreases rapidly in the first few epochs and still has tendency t
 ## Disclaimers
 
 ## Sources
-- [Code and models](https://github.com/cemkaraoguz/Fahrschule)
+- [Code](https://github.com/cemkaraoguz/Fahrschule)
+- [Models](https://github.com/cemkaraoguz/Fahrschule/tree/main/models)
+  - vae.epoch.9.tar : VAE model
+  - policy.epoch.19.tar : Policy network trained on expert data
+  - policy.ft.epoch.20.tar : Policy network trained on expert data and fine tuned with expert corrections
 - [Datasets](https://drive.google.com/drive/folders/1IAjsZQ8uWzMVeMHCNOHFhTFlUep04BzW?usp=sharing)
   - data_human : expert data from human
   - data_human_ft : expert corrections from interactive mode
