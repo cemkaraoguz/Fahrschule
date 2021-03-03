@@ -92,7 +92,7 @@ if __name__=="__main__":
   render_mode = str(getValueFromDict(cmd_args, 'render_mode', "True")).lower() in ["true", "1"]
   model_file = str(getValueFromDict(cmd_args, 'model_file', ""))
   vae_model_file = str(getValueFromDict(cmd_args, 'vae_model_file', ""))
-  num_epochs_pn = int(getValueFromDict(cmd_args, 'num_epochs', 1))
+  num_epochs_pn = int(getValueFromDict(cmd_args, 'num_epochs', 0))
   checkpoint_folder = str(getValueFromDict(cmd_args, 'checkpoint_folder', "./checkpoint"))
   do_save_checkpoints = str(getValueFromDict(cmd_args, 'do_save_checkpoints', "True")).lower() in ["true", "1"]
   min_num_corrective_samples = 0
@@ -159,23 +159,24 @@ if __name__=="__main__":
     with open(os.path.join(data_folder, corrective_data_filename), 'ab') as fp:
       pickle.dump(corrective_samples, fp)
     
-    # Train
-    batch_size = 128
-    dataset = CarRacingDataset(corrective_samples, action_space='discrete', num_skip_frames=0)
-    train_loader = DataLoader(dataset, batch_size=min(batch_size,len(dataset)), shuffle=True)
+    if num_epochs_pn>0:
+      # Train
+      batch_size = 128
+      dataset = CarRacingDataset(corrective_samples, action_space='discrete', num_skip_frames=0)
+      train_loader = DataLoader(dataset, batch_size=min(batch_size,len(dataset)), shuffle=True)
 
-    print("Fine tuning PN")
-    
-    for epoch in range(num_epochs_pn):
+      print("Fine tuning PN")
       
-      print("Epoch: ", epoch)
-      
-      train_loss = policy_network.train_epoch(train_loader, vae)
-      
-      # Save checkpoint
-      if do_save_checkpoints:
-        checkpoint_filename = 'checkpoint.policy.ft.epoch.'+str(epoch)+'.tar'
-        policy_network.save_checkpoint(folder=checkpoint_folder, filename=checkpoint_filename)
+      for epoch in range(num_epochs_pn):
+        
+        print("Epoch: ", epoch)
+        
+        train_loss = policy_network.train_epoch(train_loader, vae)
+        
+        # Save checkpoint
+        if do_save_checkpoints:
+          checkpoint_filename = 'checkpoint.policy.ft.epoch.'+str(epoch)+'.tar'
+          policy_network.save_checkpoint(folder=checkpoint_folder, filename=checkpoint_filename)
   else:
     print("Not enough corrective samples collected, skipping training")
 
