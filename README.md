@@ -7,26 +7,26 @@ The code is developed/tested under Windows 10 with python 3.8.5. The following d
 - opencv-python 4.5.1.48
 - tqdm 4.56.0
 - matplotlib 3.3.2
-- gym 0.18.0 (with swig and Box2D)
+- gym 0.18.0
 
 ## Problem setting
-For this project, we are going to train an agent to play car racing on OpenAI gym's CarRacing simulator using Imitation Learning (IL). IL is a research area closely related to the Reinforcement Learning. In Reinforcement Learning an agent interacts with an environment by following a policy. The agent takes action based on the policy and the current state, and as a result, receives a reward and transitions to a new state. The goal is to learn an optimal policy which maximizes the long-term cumulative rewards. However, in some settings learning such policies might be challenging due to the complexity of the environment or we might not even have access to agent's policy to optimize it and we may still need to infer a useful policy from the observed data. In such settings, IL can provide us with a solution by allowing us to learn from observational data provided by an expert an expert (typically a human). In this project we are going to generate expert data by manually playing the car racing game and use this dataset to train an agent.
+For this project, we are going to train an agent to play car racing in OpenAI gym's CarRacing simulator using Imitation Learning (IL). IL is a research area closely related to the Reinforcement Learning. In Reinforcement Learning an agent interacts with an environment by following a policy. The agent takes action based on the policy and the current state, and as a result, receives a reward and transitions to a new state. The goal is to learn an optimal policy which maximizes the long-term cumulative rewards. However, in some settings learning such policies might be challenging due to the complexity of the environment. We might not even have access to agent's policy to optimize it and we may still need to infer a useful policy from the observed data. In such settings, IL can provide us with a solution by allowing us to learn from observational data provided by an expert. In this project we are going to generate expert data by manually playing the car racing game and use this dataset to train an agent.
 
 ## Methods
-A very basic approach to IL is a method called Behavioural Cloning which formulates the setting as a supervised learning problem: expert’s demonstrations are divided into state-action pairs and use these pairs as input/label fashion to train a model. The main drawback of this method is that it is prone to generalization errors especially if the agent finds itself in situations where it was not demonstrated before. Therefore, it is very important to use models with good generalization capabilities.
+A very basic approach to IL is a method called Behavioural Cloning which formulates the problem in a supervised learning setting: expert’s demonstrations are divided into state-action pairs and we use these pairs in input/label fashion to train a model. The main drawback of this method is that it is prone to generalization errors especially if the agent finds itself in situations where it was not demonstrated during training. Therefore, it is very important to use models with good generalization capabilities.
 
-As the problem setting is not very complex (fairly simple state space without much variation, non-presence of other agents in the environment, low dimensional action space) we can apply this method for this project.
+As the problem setting here is not very complex (fairly simple state space without much variation, non-presence of other agents in the environment, low dimensional action space) we can take this approach to accomplish this project.
 
 ### Input space and state representation:
-Input space of the model is 96x96 pixel bird's eye view image of the simulation environment as shown in the figure below:
+At each timestep of the simulation, the gym environment give us a 96x96 pixel bird's eye view image of the simulation environment as shown in the figure below:
 
 <img src="Figures/simulator.jpg" width=500><br>
 
-While several convolutional layers can already provide a robust state representation, a better approach can be Variational Autoencoders (VAE). The general idea of autoencoders is setting an encoder and a decoder as neural networks and learning the optimal encoding-decoding scheme. The encoder compresses the input in scale to a latent space and the decoder expands this latent space back to the original dimension. When output is enforced to be the same as the input through the loss function, this bottleneck ensures only the main structured part of the information can go through and be reconstructed. However, the latent space of conventional autoencoders lack regularity: neighbouring points in the latent space do not necessarily correspond to neighbouring states in the input space. VAEs solve this problem by enforcing such regularity in the latent space. This is especially important in our case since this bestows us good generalization capabilities: if the model encounters a state which it has not seen during training but it has seen similar states, it can still infer the right action to take. 
+While several convolutional layers can already provide a robust state representation, a better approach can be Variational Autoencoders (VAE). The general idea of autoencoders is setting an encoder and a decoder as neural networks and learning the optimal encoding-decoding scheme. The encoder compresses the input to a lower dimensional latent space and the decoder expands the activations in this latent space back to the original dimension. When output is enforced to be the same as the input through the loss function, this bottleneck ensures only the main structured part of the information can go through and be reconstructed. However, the latent space of conventional autoencoders lack regularity: neighbouring points in the latent space do not necessarily correspond to neighbouring states in the state space. VAEs solve this problem by enforcing such regularity in the latent space. This is especially important in our case since this leads to good generalization capabilities: if the model encounters a state which it has not seen during training but it has seen similar states, it can still infer the right action to take. 
 
 VAEs are used intensively in related works dealing with similar problems. It also allows further extensions, for example an action-conditioned state transition model can be plugged seamlessly as in [1] and [2] or it can be trained in a generative adverserial setting as in [3] if generating realistic samples for simulation is also an objective.
 
-In this project a VAE will serve as a feature extractor and the latent layer of the VAE will be used as an input to the policy network. An architecture similar to [1] is also used here. As pre-processing, the bottom panel from the images is cropped out and the remaining part of the image is downscaled to 64x64 to have consistent strides in the encoder/decoder. Cropping out the bottom panel dicards some state information (current velocity/steering represented as bars) however, the VAE would probably get rid of this information anyway and it turns out this information is not really necessary for the current setting. The VAE is trained separately for 10 epochs and to verify its function, several example images (top) and their reconstructions (bottom) are visualized below:
+In this project a VAE will serve as a feature extractor thus, samplings from the latent layer of the VAE will be used as an input to the policy network. A similar architecture is also used in [1]. For pre-processing, the bottom panel of the image is cropped out and the remaining part of the image is downscaled to 64x64 to have consistent strides in the encoder/decoder. Cropping out the bottom panel dicards some potentially useful state information (current velocity/steering represented as bars) however, the VAE would probably get rid of this information anyway and it turns out this information is not really necessary to solve the current problem. The VAE is trained separately for 10 epochs and to verify its function, several example images (top) and their reconstructions (bottom) are visualized below:
 
 <img src="Figures/VAE_inputs.png" width=700 caption="inputs"><br>
 
@@ -35,20 +35,20 @@ In this project a VAE will serve as a feature extractor and the latent layer of 
 As we can see, the VAE suppresses information with high-variance (e.g. grass) and retains vital task relevant information (e.g. road, car). 
 
 ### Action space:
-The human control interface for generating expert data allows very few selection of actions (1 value for acceleration, brake, left turn and right turn). Here is an histogram of actions taken during 25 episodes of expert demonstrations:
+Even though the gym environment implements a continuous action space, the human control interface for generating expert data imposes selecting actions from a discrete set (accelerate, brake, left turn, right turn) with pre-defined values. To understand better, here is an histogram of actions taken by a human expert during 25 episodes of demonstrations:
 
 <img src="Figures/ActionPreferences_human_cont.png" width=1000><br>
 
-For comparison, here is a RL agent trained following the methods in [1]:
+On the other hand, a computer based controller can make use of this continuous action space to achieve better control. For example, the figure below shows an histogram of actions taken by the autonomous agent from [1] during 50 episodes:
 
 <img src="Figures/ActionPreferences_RLagent_cont.png" width=1000><br>
 
-If we were using an AI as expert, we could choose continous action space (actually this was tested and works quite well). But in this case, discrete action space seems like a better option. 5 actions are defined: Steer Left, Steer Right, Accelerate, Brake, Straight (i.e. No Action). This implies that combination of actions are not regarded and in such cases the action is mapped to one of these 5 cases depending on pre-defined heuristics. This desing choice was simply due to author's personal experience on playing the game, usually a player only uses one action at a time. The following figure shows the histogram of action preferences from 25 expert demonstrations after mapping:
+If we were to take such an AI as our expert, we could choose continous action space for our model (actually this was tested and works quite well). But in our case, discrete action space seems like a better option. For this problem, 5 actions are defined: Steer Left, Steer Right, Accelerate, Brake, No Action. Combinations of actions are disregarded and in such cases the action is mapped to one of these 5 cases depending on pre-defined heuristics. This desing choice was simply due to author's personal experience on playing the game. The following figure shows the histogram of action preferences from 25 expert demonstrations after mapping:
 
 <img src="Figures/ActionPreferences_human.png" width=500><br>
 
 ### Policy network and the loss function:
-Policy network takes the latent representation of the VAE and outputs the action to take. For this job, a simple fully connected neural network with one hidden layer is used. The above figure illustrating the expert action preferences indicates that our database is highly unbalanced and has a bias towards taking no action. In order not to have a biased model, it is necessary to deal with this problem. One remedy for this is to use CrossEntropy loss instead of MSE loss so that the model is penalized more heavily for cases where model is very sure on wrong decisions. In addition to this, a common practice is to sample the database in inverse proportion to each action's presence in the database i.e. actions that are low in number are sampled more. A similar approach, which is implemented as an option, is to remove samples of overrepresented action categories from the dataset. An alternative approach, which is also implemented here, is to use weighted loss function i.e. actions that are low in number are weighted more in loss. Weights are calculated in inverse proportion to action's population in the database.
+Policy network takes the latent representation of the VAE and outputs the action to take. For this job, a simple fully connected neural network with one hidden layer is used. The above figure illustrating the expert action preferences indicates that our database is highly unbalanced and has a bias towards taking no action. In order not to have a biased model, it is necessary to deal with this problem. One remedy for this is to use CrossEntropy loss instead of MSE loss so that the model is penalized more heavily for cases where model is very sure on wrong decisions. In addition to this, a common practice is to sample the database using a probability distribution over action categories that is inversely proportional to the number of samples belonging to each action category i.e. samples with actions that are low in number in the database are more likely to be sampled. A similar approach, which is implemented as an option in this work, is to remove samples that belong to such overrepresented action categories from the dataset. A third option, which is also implemented here, is to use weighted loss function i.e. samples with actions that are low in number are weighted more in loss. Weight of each category is inversely proportional to its population in the database.
 
 Another implemented feature is epsilon greedy action selection strategy: at any given time action Accelerate is selected for several consecutive timesteps with the probability of epsilon<<0. Experiments are conducted for values of epsilon 0 and 0.01. This strategy can trigger the agent to go out of dead-lock situations and can have significant effects on the outcomes of the race.
 
@@ -57,7 +57,7 @@ The overall network architecture is shown in the figure below:
 
 <img src="Figures/NetworkArchi.png" width=500><br>
 
-In this work two separated networks (VAE and Policy Network) are implemented and trained separately as done in [1] and [3]. This modular apporach is very useful in various ways:
+In this work two networks (VAE and Policy Network) are implemented and trained separately as done in [1] and [3]. This modular apporach is very useful in various ways:
 - Debugging: we can more easily isolate and analyze different parts of the system 
 - Research: we can quickly implement and test new ideas in different parts of the system without breaking the rest of the system
 
@@ -69,7 +69,7 @@ To generate expert data `record_data.py` script can be used:
 
 `python record_data.py --data_folder ./data_human --num_episode 5`
 
-This will setup the game environment for manual play for 5 episodes of games and save each episode in a separate file under the subfolder data_human. The user has to decide whether to keep the recorded data or discard it at the end of each episode. Samples are recorded as list of tuples, where each tuple is composed of (current state, received reward, taken action). A dataset class compatible with pytorch's data loader is also implemented and can be used with other recorded data if it follows this format.
+This will setup the game environment for manual play for 5 episodes of games and save each episode in a separate file under the subfolder data_human. The user has to decide whether to keep the recorded data or discard it at the end of each episode. Samples are recorded as lists of tuples, where each tuple is composed of (current state, received reward, taken action). A dataset class compatible with pytorch's data loader is also implemented and can be used with other recorded data if it follows this format.
 
 For this work, 25 episodes of expert plays (24884 samples in total) are collected to serve as the human expert database.
 
@@ -118,16 +118,16 @@ epsilon | Human Expert | Baseline | Fine tuning | Mixed data
 
 Here:
 - **Baseline** is the agent trained with expert data for 20 epochs
-- **Fine tuning** is the baseline agent trained with 2 episodes of expert corrections for 1 epoch
-- **Mixed data** is the agent trained with mixed expert and correction data for 20 episodes 
+- **Fine tuning** is the baseline agent post-trained with data from 2 episodes of expert corrections for 1 epoch
+- **Mixed data** is the agent trained from scratch with mixed expert and correction data for 20 episodes 
 
-At this stage, Baseline agent is more conservative in driving with respect to human expert. This is probably due to hesitant usage of acceleration by the human agent and bias towards No Action (see action preferences figure above). However, adding very few expert feedback where more acceleration is used (Fine tuning case) greatly increases the performance. Action preferences of the 2 expert feedback episodes is shown below:
+At this stage, Baseline agent is more conservative in driving with respect to human expert. This is probably due to hesitant usage of acceleration by the human agent and bias towards No Action caused by large number of No Action samples (see action preferences figure above). This indicates that there is a room for improvement in the computation of weights for loss function. One can also apply an alternative method. For example, further tests conducted with a more balanced training set (achieved by removing samples from excessive action categories) resulted in an average total reward of 751 with standard deviation of 216 over 25 game episodes.
+
+Adding relatively few expert correction samples (~1000) increases the performance considerably (Fine tuning case). This is probably due to the use of more acceleration actions. Action preferences of the 2 expert correction episodes is shown below:
 
 <img src="Figures/ActionPreferences_ft.png" width=500><br>
 
-To be clear, the system is not trained from scratch with data from expert feedback episodes, a training epoch is realized over the already learned model with only feedback data.
-
-In the case of Mixed data the performance stays somewhere between the Baseline and Fine tuning. Newly added samples probably boost the number of samples of the actions accelerate, steer left and steer right but there is still bias in the dataset towards No Action. To remedy this, we have several options: doing more interactive feedback sessions with the expert, tuning weights of action categories for the loss function or get balanced samples during training. Further tests conducted with a more balanced training set (achieved by removing samples from excessive action categories) resulted in an average total reward of 751 with standard deviation of 216 over 25 game episodes.
+In the case of Mixed data the performance stays somewhere between the Baseline and Fine tuning. Newly added samples probably boost the number of samples of the actions accelerate, steer left and steer right but there is still bias in the dataset towards No Action. As stated before we have several options to remedy this: doing more interactive feedback sessions with the expert, tuning weights of action categories for the loss function or get balanced samples during training. 
 
 Another point to remark is that a slight increase in the epsilon boosts the performance of agents considerably by introducing occasional bursts of thrusts and saving agents from deadlocks. 
 
