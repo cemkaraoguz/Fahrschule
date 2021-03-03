@@ -93,6 +93,8 @@ Training loss decreases rapidly in the first few epochs and still has tendency t
 ## Sources
 - [Code and models](https://github.com/cemkaraoguz/Fahrschule)
 - [Datasets](https://drive.google.com/drive/folders/1IAjsZQ8uWzMVeMHCNOHFhTFlUep04BzW?usp=sharing)
+  - data_human : expert data from human
+  - data_human_ft : expert corrections from interactive mode
 
 ## References
 [1] Ha, David, and Jürgen Schmidhuber. "World models." arXiv preprint arXiv:1803.10122 (2018). [Link](https://arxiv.org/pdf/1803.10122.pdf)
