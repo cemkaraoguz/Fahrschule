@@ -89,7 +89,11 @@ The evolution of policy network training in terms of loss is shown in the figure
 Training loss decreases rapidly in the first few epochs and still has tendency to decrease at epoch 20. Further experiments with longer training periods indeed showed lower loss values but no significant improvement in the agent's performance. Validation loss also decreases rapidly and stays below the training loss. Everything looks normal.
 
 ## Disclaimers
-## Other sources
+
+## Sources
+- [Code and models](https://github.com/cemkaraoguz/Fahrschule)
+- [Datasets](https://drive.google.com/drive/folders/1IAjsZQ8uWzMVeMHCNOHFhTFlUep04BzW?usp=sharing)
+
 ## References
 [1] Ha, David, and Jürgen Schmidhuber. "World models." arXiv preprint arXiv:1803.10122 (2018). [Link](https://arxiv.org/pdf/1803.10122.pdf)
 
