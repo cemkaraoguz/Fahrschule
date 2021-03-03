@@ -120,6 +120,7 @@ class ConvVAEWrapper(ModelWrapper):
   
   def __init__(self, args):
     self.in_channels = getValueFromDict(args, 'in_channels', None)
+    self.beta = getValueFromDict(args, 'beta', 1.0)
     weight_decay = getValueFromDict(args, 'weight_decay', 0.01)
     self.lr = getValueFromDict(args, 'lr', 1e-3)
     self.net = ConvVAE(args)
@@ -146,7 +147,22 @@ class ConvVAEWrapper(ModelWrapper):
       self.optimizer.step()
       avg_loss.update(loss.item(), batch_frame.size(0))
       t.set_postfix(Loss=avg_loss)
-      
+    return avg_loss
+
+  def test_epoch(self, data_loader):
+    self.net.eval()
+    avg_loss = AverageMeter()
+    t = tqdm(range(len(data_loader)), desc="Testing")
+    for _, (batch_frame, batch_reward, batch_action) in zip(t, data_loader):
+      batch_frame = torch.FloatTensor(np.array(batch_frame).astype(np.float64))
+      with torch.no_grad():
+        latent_data, logits_data, output_data = self.net(batch_frame.to(self.device))
+      loss = self.lossFunction(logits_data.to(self.device), batch_frame.to(self.device), 
+        latent_data[0].to(self.device), latent_data[1].to(self.device))
+      avg_loss.update(loss.item(), batch_frame.size(0))
+      t.set_postfix(Loss=avg_loss)
+    return avg_loss
+     
   def visualize_decoder(self, data_loader):
     im_shape = (IM_HEIGHT, IM_WIDTH)
     self.net.eval()
@@ -186,7 +202,7 @@ class ConvVAEWrapper(ModelWrapper):
   def _vae_loss(self, network_output, target, mu, log_var):
     reconstruction_loss = F.binary_cross_entropy_with_logits(network_output, target, reduction='sum')
     kld_loss = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-    return reconstruction_loss + kld_loss  
+    return (reconstruction_loss + self.beta * kld_loss)/network_output.shape[0]
 
 class LiNetWrapper(ModelWrapper):
   

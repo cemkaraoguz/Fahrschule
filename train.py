@@ -15,6 +15,7 @@ if __name__=="__main__":
   num_epochs_vae = int(getValueFromDict(cmd_args, 'num_epochs_vae', 1))
   checkpoint_folder = str(getValueFromDict(cmd_args, 'checkpoint_folder', "./checkpoint"))
   do_save_checkpoints = str(getValueFromDict(cmd_args, 'do_save_checkpoints', "True")).lower() in ["true", "1"]
+  do_balance_dataset = str(getValueFromDict(cmd_args, 'do_balance_dataset', "False")).lower() in ["true", "1"]
   load_epoch = int(getValueFromDict(cmd_args, 'load_epoch', -1))
   model_file = str(getValueFromDict(cmd_args, 'model_file', ""))
   do_load_vae = str(getValueFromDict(cmd_args, 'do_load_vae', "False")).lower() in ["true", "1"]
@@ -62,6 +63,8 @@ if __name__=="__main__":
   
   # Datasets and loaders
   dataset = CarRacingDataset(data_folder, action_space='discrete', num_skip_frames=num_skip_frames_dataset)
+  if do_balance_dataset:
+    dataset.balance_dataset()
   if R_TRAIN<1.0:
     train_set, valid_set = random_split(dataset, [int(len(dataset)*R_TRAIN), len(dataset)-int(len(dataset)*(R_TRAIN))])
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -80,7 +83,8 @@ if __name__=="__main__":
   if do_load_vae:
     # Continue training not implemented, just load existing model to skip VAE training
     print("Loading VAE")
-    vae.load_checkpoint(vae_checkpoint_folder, vae_checkpoint_file)    
+    vae.load_checkpoint(vae_checkpoint_folder, vae_checkpoint_file)   
+    valid_loss_vae = vae.test_epoch(valid_loader)
   else:
     # Training
     print("Training VAE")
@@ -88,7 +92,13 @@ if __name__=="__main__":
       
       print("Epoch: ", epoch)
       
-      vae.train_epoch(train_loader)
+      train_loss_vae = vae.train_epoch(train_loader)
+      
+      # Validate
+      if valid_loader is not None:
+        valid_loss_vae = vae.test_epoch(valid_loader)
+      else:
+        valid_loss_vae = 0
       
       if do_save_checkpoints: 
         vae_checkpoint_filename = 'checkpoint.vae.epoch.'+str(epoch)+'.tar'
@@ -118,13 +128,13 @@ if __name__=="__main__":
     print("Epoch: ", epoch)
     
     # Train
-    train_loss = policy_network.train_epoch(train_loader, vae)
+    train_loss_pn = policy_network.train_epoch(train_loader, vae)
     
     # Validate
     if valid_loader is not None:
-      valid_loss = policy_network.test_epoch(valid_loader, vae)
+      valid_loss_pn = policy_network.test_epoch(valid_loader, vae)
     else:
-      valid_loss = 0
+      valid_loss_pn = 0
     
     # Save checkpoint
     if do_save_checkpoints:
@@ -135,8 +145,12 @@ if __name__=="__main__":
       if epoch not in log_data.keys():
         log_data[epoch] = {}
       log_data['last_iteration'] = epoch
-      log_data[epoch]['train_loss'] = train_loss.avg
+      log_data[epoch]['train_loss_pn'] = train_loss_pn.avg
       if valid_loader is not None:
-        log_data[epoch]['valid_loss'] = valid_loss.avg
+        log_data[epoch]['valid_loss_pn'] = valid_loss_pn.avg
+      if not do_load_vae:
+        log_data[epoch]['train_loss_vae'] = train_loss_vae.avg
+        if valid_loader is not None:
+          log_data[epoch]['valid_loss_vae'] = valid_loss_vae.avg
       saveLogData(log_data, checkpoint_folder)
   
