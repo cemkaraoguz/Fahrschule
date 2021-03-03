@@ -60,18 +60,19 @@ def loadLogData(folder):
       return Unpickler(f).load()
       
 def parseArguments(argv):
-  long_option_mappings = {'data_folder='    : ['data_folder', '[TRAIN] Data root directory'],
-                          'cp='             : ['do_save_checkpoint', '[TRAIN] Do save checkpoint?'],
-                          'cp_folder='      : ['checkpoint_folder', '[TRAIN] Checkpoint folder'],
-                          'num_epochs='     : ['num_epochs', '[TRAIN] Number of epochs to train policy network'],
-                          'num_epochs_vae=' : ['num_epochs_vae', '[TRAIN] Number of epochs to train VAE'],
-                          'load_epoch='     : ['load_epoch', '[TRAIN] Checkpoint epoch number to load'],
-                          'do_load_vae='    : ['do_load_vae', '[TRAIN] Load VAE Model from disk?'],
-                          'model_file='     : ['model_file', '[TRAIN/EVAL] Path to the PN model file to be loaded'],
-                          'vae_model_file=' : ['vae_model_file', '[TRAIN/EVAL] Path to the VAE model file to be loaded'],
-                          'num_episode='    : ['num_episode', '[EVAL] Number of episodes to evaluate an agent'],
-                          'render_mode='    : ['render_mode', '[EVAL] True for render environment on screen'],
-                          'epsilon='        : ['epsilon', '[EVAL] Epsilon for epsilon-greedy action selection'], 
+  long_option_mappings = {'data_folder='        : ['data_folder', '[TRAIN] Data root directory'],
+                          'cp='                 : ['do_save_checkpoint', '[TRAIN] Do save checkpoint?'],
+                          'cp_folder='          : ['checkpoint_folder', '[TRAIN] Checkpoint folder'],
+                          'num_epochs='         : ['num_epochs', '[TRAIN] Number of epochs to train policy network'],
+                          'num_epochs_vae='     : ['num_epochs_vae', '[TRAIN] Number of epochs to train VAE'],
+                          'load_epoch='         : ['load_epoch', '[TRAIN] Checkpoint epoch number to load'],
+                          'do_load_vae='        : ['do_load_vae', '[TRAIN] Load VAE Model from disk?'],
+                          'do_balance_dataset=' : ['do_balance_dataset', '[TRAIN] Balance dataset by removing overrepresented actions?'],
+                          'model_file='         : ['model_file', '[TRAIN/EVAL] Path to the PN model file to be loaded'],
+                          'vae_model_file='     : ['vae_model_file', '[TRAIN/EVAL] Path to the VAE model file to be loaded'],
+                          'num_episode='        : ['num_episode', '[EVAL] Number of episodes to evaluate an agent'],
+                          'render_mode='        : ['render_mode', '[EVAL] True for render environment on screen'],
+                          'epsilon='            : ['epsilon', '[EVAL] Epsilon for epsilon-greedy action selection'], 
                           }
                           
   def print_arguments():

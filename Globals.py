@@ -21,11 +21,11 @@ GAIN_THROTTLE = 1.0
 GAIN_STEERING = 1.0
 GAIN_BRAKE = 0.8
 ACTION_MAPPING = {
-  0: np.array([ 0.0,           0.0,           0.0       ], dtype=np.float32),  # STRAIGHT
-  1: np.array([ 0.0,           GAIN_THROTTLE, 0.0       ], dtype=np.float32),  # ACCELERATE
-  2: np.array([ GAIN_STEERING, 0.0,           0.0       ], dtype=np.float32),  # RIGHT
-  3: np.array([ 0.0,           0.0,           GAIN_BRAKE], dtype=np.float32),  # BRAKE
-  4: np.array([-GAIN_STEERING, 0.0,           0.0       ], dtype=np.float32),  # LEFT
+  0: np.array([ 0.0,           0.0,           0.0       ], dtype=np.float32),  # No action
+  1: np.array([ 0.0,           GAIN_THROTTLE, 0.0       ], dtype=np.float32),  # Accelerate
+  2: np.array([ GAIN_STEERING, 0.0,           0.0       ], dtype=np.float32),  # Right
+  3: np.array([ 0.0,           0.0,           GAIN_BRAKE], dtype=np.float32),  # Brake
+  4: np.array([-GAIN_STEERING, 0.0,           0.0       ], dtype=np.float32),  # Left
   }
 NUM_DISCRETE_ACTIONS = len(ACTION_MAPPING)      # Number of actions if discrete space is used
   

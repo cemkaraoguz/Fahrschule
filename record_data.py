@@ -2,6 +2,7 @@ import gym
 import random
 import numpy as np
 import os
+import sys
 from datetime import datetime
 import pickle
 from Globals import *
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         break
     
     print(f"You scored {total_reward}...")
-    user_input = input("Do you want to save your trajectory?")
+    user_input = input("Do you want to save your trajectory? [y/n]")
     if user_input.lower() in ["y", "yes"]:
       with open(os.path.join(data_folder,filename), 'ab') as fp:
         pickle.dump(samples, fp)
